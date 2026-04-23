@@ -46,4 +46,5 @@ npm install
 
 4. Inicie o servidor do Expo:
 npx expo start
-Leia o QR Code gerado no terminal utilizando o aplicativo Expo Go no seu dispositivo físico para testar o app com as funcionalidades de GPS ativas.
+
+5. Leia o QR Code gerado no terminal utilizando o aplicativo Expo Go no seu dispositivo físico para testar o app com as funcionalidades de GPS ativas.
