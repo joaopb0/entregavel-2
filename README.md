@@ -44,6 +44,6 @@ cd SEU_REPOSITORIO
 3. Instale as dependências:
 npm install
 
-4.Inicie o servidor do Expo:
+4. Inicie o servidor do Expo:
 npx expo start
 Leia o QR Code gerado no terminal utilizando o aplicativo Expo Go no seu dispositivo físico para testar o app com as funcionalidades de GPS ativas.
