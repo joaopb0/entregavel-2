@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   StyleSheet,
   View,
@@ -17,7 +17,6 @@ import {
 import MapView, { Marker, Polyline, PROVIDER_DEFAULT } from 'react-native-maps';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Importando funções utilitárias fornecidas no template
 import { getUserLocation } from './getUserLocation';
 import { watchUserLocation } from './watchUserLocation';
 import { fetchAddress } from './fetchAddress';
@@ -29,79 +28,23 @@ const LATITUDE_DELTA = 0.04;
 const LONGITUDE_DELTA = LATITUDE_DELTA * ASPECT_RATIO;
 const STORAGE_KEY = '@park_history_v1';
 
-/**
- * Interface/Type definition representation for JSDoc purposes.
- * @typedef {Object} Coordinate
- * @property {number} latitude - A latitude da coordenada.
- * @property {number} longitude - A longitude da coordenada.
- */
-
-/**
- * @typedef {Object} SavedLocation
- * @property {string} id - Identificador único gerado na hora de salvar.
- * @property {string} title - O nome dado pelo usuário para o local (ex: "Trabalho", "Estacionamento do Shopping").
- * @property {string} address - O endereço retornado pela API de geocodificação reversa.
- * @property {Coordinate} coordinate - As coordenadas exatas do local salvo.
- * @property {string} timestamp - A data e hora em que o local foi salvo no formato ISO.
- */
-
-/**
- * Componente Principal do Aplicativo "Onde Parei?" / "Diário de Locais"
- * Este componente gerencia todo o estado do aplicativo, desde a localização
- * atual do usuário até a persistência de dados no AsyncStorage e a renderização
- * de modais e do mapa principal.
- *
- * O aplicativo foi arquitetado para possuir apenas uma tela, com toda a
- * interatividade ocorrendo através de painéis flutuantes (Overlays) e Modais.
- *
- * @returns {JSX.Element} O componente App renderizado.
- */
 export default function App() {
-  // =========================================================================
-  // ======================= REFERÊNCIAS E ESTADOS ===========================
-  // =========================================================================
-
-  /** Referência para acessar métodos imperativos do MapView (ex: animateToRegion) */
   const mapRef = useRef(null);
-  
-  /** Armazena a inscrição do listener de localização para limpeza no unmount */
   const locationSubscription = useRef(null);
 
-  // Estados de Localização e Mapa
   const [userLocation, setUserLocation] = useState(null);
-  const [mapType, setMapType] = useState('standard'); // 'standard', 'satellite', 'terrain'
-  
-  // Estados de Persistência (Histórico)
+  const [mapType, setMapType] = useState('standard');
   const [savedLocations, setSavedLocations] = useState([]);
-  
-  // Estados de Rotas e Destino
   const [currentRoute, setCurrentRoute] = useState([]);
   const [selectedDestination, setSelectedDestination] = useState(null);
-  
-  // Estados de Modais
   const [isSaveModalVisible, setIsSaveModalVisible] = useState(false);
   const [isHistoryModalVisible, setIsHistoryModalVisible] = useState(false);
   const [isSettingsModalVisible, setIsSettingsModalVisible] = useState(false);
-  
-  // Estados do Fluxo de Salvamento
   const [locationNameInput, setLocationNameInput] = useState('');
-  const [tempAddressInfo, setTempAddressInfo] = useState(null); // Guarda info provisória antes de salvar
-  
-  // Estados de Carregamento Globais
+  const [tempAddressInfo, setTempAddressInfo] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState('');
 
-  // =========================================================================
-  // ========================== EFEITOS COLATERAIS ===========================
-  // =========================================================================
-
-  /**
-   * Efeito executado na inicialização do componente.
-   * Responsável por:
-   * 1. Carregar o histórico de locais salvos do AsyncStorage.
-   * 2. Obter a localização inicial do usuário para centralizar o mapa.
-   * 3. Configurar o "watcher" para atualizar a localização em tempo real.
-   */
   useEffect(() => {
     let isMounted = true;
 
@@ -110,17 +53,14 @@ export default function App() {
         setIsLoading(true);
         setLoadingMessage('Iniciando aplicativo...');
         
-        // 1. Carregar Histórico
         await loadHistoryFromStorage();
 
-        // 2. Pegar localização inicial rápida
         const initialLoc = await getUserLocation();
         if (isMounted && initialLoc && initialLoc.coords) {
           setUserLocation(initialLoc.coords);
           centerMapOnUser(initialLoc.coords);
         }
 
-        // 3. Iniciar o rastreamento em tempo real
         const sub = await watchUserLocation((loc) => {
           if (isMounted && loc && loc.coords) {
             setUserLocation(loc.coords);
@@ -141,7 +81,6 @@ export default function App() {
 
     initializeApp();
 
-    // Cleanup function: remove o watcher de localização quando o componente desmonta
     return () => {
       isMounted = false;
       if (locationSubscription.current) {
@@ -150,14 +89,6 @@ export default function App() {
     };
   }, []);
 
-  // =========================================================================
-  // ======================== FUNÇÕES DE PERSISTÊNCIA ========================
-  // =========================================================================
-
-  /**
-   * Carrega o histórico de locais armazenados no AsyncStorage.
-   * Caso não haja dados, inicializa com um array vazio.
-   */
   const loadHistoryFromStorage = async () => {
     try {
       const storedData = await AsyncStorage.getItem(STORAGE_KEY);
@@ -172,10 +103,6 @@ export default function App() {
     }
   };
 
-  /**
-   * Salva o estado atual do array de locais no AsyncStorage.
-   * @param {Array<SavedLocation>} newHistory - O novo array de locais a ser salvo.
-   */
   const saveHistoryToStorage = async (newHistory) => {
     try {
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(newHistory));
@@ -186,14 +113,6 @@ export default function App() {
     }
   };
 
-  // =========================================================================
-  // ======================== LÓGICA DE NEGÓCIOS =============================
-  // =========================================================================
-
-  /**
-   * Inicia o fluxo de salvar o local atual.
-   * Verifica se temos a localização, faz o geocoding reverso e abre o modal.
-   */
   const handleInitiateSaveLocation = async () => {
     if (!userLocation) {
       Alert.alert("Atenção", "Localização do GPS ainda não disponível. Aguarde um momento.");
@@ -204,7 +123,6 @@ export default function App() {
       setIsLoading(true);
       setLoadingMessage('Buscando endereço...');
       
-      // Chamada para a função fetchAddress original do template
       const addressData = await fetchAddress({ 
         latitude: userLocation.latitude, 
         longitude: userLocation.longitude 
@@ -220,7 +138,6 @@ export default function App() {
         coordinate: { ...userLocation },
       });
       
-      // Sugerir um nome padrão baseado na hora
       const hour = new Date().getHours();
       let greeting = 'Local salvo de ';
       if (hour < 12) greeting += 'Manhã';
@@ -238,10 +155,6 @@ export default function App() {
     }
   };
 
-  /**
-   * Confirma o salvamento após o usuário digitar o nome no Modal.
-   * Adiciona o novo registro ao histórico e persiste no Storage.
-   */
   const confirmSaveLocation = async () => {
     if (!locationNameInput.trim()) {
       Alert.alert("Aviso", "Por favor, insira um nome para o local.");
@@ -265,10 +178,6 @@ export default function App() {
     Alert.alert("Sucesso!", "Local salvo com sucesso no seu diário.");
   };
 
-  /**
-   * Deleta um item específico do histórico pelo seu ID.
-   * @param {string} id - O ID único do local a ser removido.
-   */
   const handleDeleteLocation = (id) => {
     Alert.alert(
       "Confirmar exclusão",
@@ -282,7 +191,6 @@ export default function App() {
             const updatedHistory = savedLocations.filter(loc => loc.id !== id);
             await saveHistoryToStorage(updatedHistory);
             
-            // Se o local apagado é o destino atual, limpa a rota
             if (selectedDestination && selectedDestination.id === id) {
               clearCurrentRoute();
             }
@@ -292,10 +200,6 @@ export default function App() {
     );
   };
 
-  /**
-   * Limpa todo o histórico de uma vez.
-   * Chamado a partir do modal de configurações.
-   */
   const handleClearAllHistory = () => {
     Alert.alert(
       "Atenção - Danger Zone",
@@ -316,11 +220,6 @@ export default function App() {
     );
   };
 
-  /**
-   * Ao clicar em um local no histórico, busca a rota do usuário até lá,
-   * fecha o modal e anima o mapa para focar na rota completa.
-   * @param {SavedLocation} item - O item selecionado no histórico.
-   */
   const handleHistoryItemPress = async (item) => {
     setIsHistoryModalVisible(false);
     
@@ -339,15 +238,12 @@ export default function App() {
         setCurrentRoute(routePoints);
         setSelectedDestination(item);
         
-        // Enquadrar o mapa para mostrar toda a rota
         if (mapRef.current) {
-          // Extrai apenas as coordenadas em array simples para fitToCoordinates
           const coordinatesForFit = routePoints.map(p => ({
             latitude: p.latitude,
             longitude: p.longitude
           }));
           
-          // Adiciona a posição do usuário e o destino para garantir que estão na tela
           coordinatesForFit.push(userLocation);
           coordinatesForFit.push(item.coordinate);
 
@@ -367,9 +263,6 @@ export default function App() {
     }
   };
 
-  /**
-   * Limpa a rota atual traçada no mapa, restaurando a visão padrão do GPS.
-   */
   const clearCurrentRoute = () => {
     setCurrentRoute([]);
     setSelectedDestination(null);
@@ -378,10 +271,6 @@ export default function App() {
     }
   };
 
-  /**
-   * Centraliza o mapa nas coordenadas fornecidas.
-   * @param {Coordinate} coords - As coordenadas para centralizar.
-   */
   const centerMapOnUser = (coords) => {
     if (mapRef.current && coords) {
       mapRef.current.animateToRegion({
@@ -393,15 +282,6 @@ export default function App() {
     }
   };
 
-  // =========================================================================
-  // ======================== FUNÇÕES UTILITÁRIAS ============================
-  // =========================================================================
-
-  /**
-   * Formata uma string ISO Date para um formato legível local.
-   * @param {string} isoString - Data em formato ISO.
-   * @returns {string} Data e hora formatadas.
-   */
   const formatDate = (isoString) => {
     if (!isoString) return '';
     const date = new Date(isoString);
@@ -414,14 +294,6 @@ export default function App() {
     });
   };
 
-  // =========================================================================
-  // ======================== COMPONENTES DA UI ==============================
-  // =========================================================================
-
-  /**
-   * Componente de Overlay de Carregamento Global
-   * Utilizado durante chamadas de rede intensas para bloquear interação.
-   */
   const LoadingOverlay = () => {
     if (!isLoading) return null;
     return (
@@ -432,10 +304,6 @@ export default function App() {
     );
   };
 
-  /**
-   * Componente do Header Flutuante
-   * Fica posicionado no topo da tela, sobrepondo o mapa.
-   */
   const FloatingHeader = () => (
     <View style={styles.headerContainer}>
       <Text style={styles.headerTitle}>🚙 Onde Parei?</Text>
@@ -443,13 +311,8 @@ export default function App() {
     </View>
   );
 
-  /**
-   * Componente de Botões de Ação Flutuantes (FAB)
-   * Renderiza os botões principais de interação com o app na base da tela.
-   */
   const FloatingActions = () => (
     <View style={styles.actionsContainer}>
-      {/* Botão de Histórico */}
       <TouchableOpacity 
         style={[styles.actionButton, styles.secondaryButton]} 
         onPress={() => setIsHistoryModalVisible(true)}
@@ -458,7 +321,6 @@ export default function App() {
         <Text style={styles.actionButtonText}>Histórico</Text>
       </TouchableOpacity>
 
-      {/* Botão Principal de Salvar */}
       <TouchableOpacity 
         style={[styles.actionButton, styles.primaryButton]} 
         onPress={handleInitiateSaveLocation}
@@ -467,7 +329,6 @@ export default function App() {
         <Text style={styles.actionButtonText}>Salvar Local</Text>
       </TouchableOpacity>
 
-      {/* Botão de Configurações */}
       <TouchableOpacity 
         style={[styles.actionButton, styles.secondaryButton]} 
         onPress={() => setIsSettingsModalVisible(true)}
@@ -478,10 +339,6 @@ export default function App() {
     </View>
   );
 
-  /**
-   * Componente que renderiza um botão sobreposto ao mapa para limpar a rota ativa.
-   * Só aparece quando existe uma rota traçada.
-   */
   const ClearRouteButton = () => {
     if (currentRoute.length === 0) return null;
     return (
@@ -495,14 +352,6 @@ export default function App() {
     );
   };
 
-  // =========================================================================
-  // ======================== MODAIS (Telas Secundárias) =====================
-  // =========================================================================
-
-  /**
-   * Modal exibido após o fetch do endereço, para que o usuário confirme e
-   * dê um nome amigável ao local antes de salvar.
-   */
   const renderSaveModal = () => (
     <Modal
       visible={isSaveModalVisible}
@@ -549,10 +398,6 @@ export default function App() {
     </Modal>
   );
 
-  /**
-   * Modal que exibe a lista (FlatList) de todos os locais salvos.
-   * Permite navegação (rota) ou exclusão de cada item.
-   */
   const renderHistoryModal = () => {
     const renderItem = ({ item }) => (
       <TouchableOpacity 
@@ -617,10 +462,6 @@ export default function App() {
     );
   };
 
-  /**
-   * Modal de configurações e estatísticas.
-   * Permite trocar o tipo do mapa e limpar todo o histórico de dados local.
-   */
   const renderSettingsModal = () => (
     <Modal
       visible={isSettingsModalVisible}
@@ -680,15 +521,10 @@ export default function App() {
     </Modal>
   );
 
-  // =========================================================================
-  // ======================== RENDERIZAÇÃO PRINCIPAL =========================
-  // =========================================================================
-
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
       
-      {/* Componente Central: O MAPA */}
       {userLocation ? (
         <MapView
           ref={mapRef}
@@ -702,11 +538,10 @@ export default function App() {
             longitudeDelta: LONGITUDE_DELTA,
           }}
           showsUserLocation={true}
-          showsMyLocationButton={false} // Desabilitamos nativo para manter UI limpa
+          showsMyLocationButton={false}
           showsCompass={false}
           loadingEnabled={true}
         >
-          {/* Marcador do Destino Selecionado no Histórico */}
           {selectedDestination && (
             <Marker
               coordinate={selectedDestination.coordinate}
@@ -716,11 +551,10 @@ export default function App() {
             />
           )}
 
-          {/* Polyline da Rota Traçada */}
           {currentRoute.length > 0 && (
             <Polyline 
               coordinates={currentRoute}
-              strokeColor="#3498db" // Azul bonito para a rota
+              strokeColor="#3498db"
               strokeWidth={5}
               lineCap="round"
               lineJoin="round"
@@ -728,47 +562,32 @@ export default function App() {
           )}
         </MapView>
       ) : (
-        // Estado inicial de carregamento caso não tenha GPS ainda
         <View style={styles.initialLoadingContainer}>
           <ActivityIndicator size="large" color="#3498db" />
           <Text style={styles.initialLoadingText}>Localizando satélites GPS...</Text>
         </View>
       )}
 
-      {/* Camadas da Interface de Usuário (Overlays) */}
       <FloatingHeader />
       
-      {/* Botão posicionado no topo da rota para limpar */}
       <ClearRouteButton />
 
       <FloatingActions />
       
-      {/* Modais flutuantes do aplicativo */}
       {renderSaveModal()}
       {renderHistoryModal()}
       {renderSettingsModal()}
 
-      {/* Overlay de loading global para requisições demoradas */}
       <LoadingOverlay />
 
     </View>
   );
 }
 
-// =========================================================================
-// ========================== FOLHA DE ESTILOS =============================
-// =========================================================================
-
-/**
- * Definições detalhadas de estilos para todos os componentes criados.
- * Uso extensivo de elevation, shadows, border radius para garantir uma
- * UI/UX rica e moderna.
- */
 const styles = StyleSheet.create({
-  // ---- Base do App ----
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa', // fallback color
+    backgroundColor: '#f8f9fa',
   },
   map: {
     width: width,
@@ -787,14 +606,12 @@ const styles = StyleSheet.create({
     color: '#7f8c8d',
     fontWeight: '500',
   },
-
-  // ---- Overlays Globais ----
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0, 0, 0, 0.7)',
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 9999, // Fica sobre tudo
+    zIndex: 9999,
     elevation: 10,
   },
   loadingText: {
@@ -803,8 +620,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
-
-  // ---- Floating Header ----
   headerContainer: {
     position: 'absolute',
     top: Platform.OS === 'ios' ? 50 : StatusBar.currentHeight + 10,
@@ -818,7 +633,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 10,
-    elevation: 8, // Android shadow
+    elevation: 8,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: 'rgba(0,0,0,0.05)',
@@ -835,11 +650,9 @@ const styles = StyleSheet.create({
     marginTop: 2,
     fontWeight: '500',
   },
-
-  // ---- Floating Clear Route Button ----
   clearRouteButton: {
     position: 'absolute',
-    top: 130, // Fica abaixo do header
+    top: 130,
     alignSelf: 'center',
     backgroundColor: '#e74c3c',
     paddingVertical: 8,
@@ -862,11 +675,9 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 14,
   },
-
-  // ---- Floating Action Buttons (Base) ----
   actionsContainer: {
     position: 'absolute',
-    bottom: 30, // Distância do fundo da tela
+    bottom: 30,
     left: 10,
     right: 10,
     flexDirection: 'row',
@@ -884,7 +695,7 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   primaryButton: {
-    backgroundColor: '#2ecc71', // Verde de sucesso
+    backgroundColor: '#2ecc71',
     width: 140,
     height: 70,
     paddingVertical: 12,
@@ -905,11 +716,9 @@ const styles = StyleSheet.create({
     color: '#34495e',
     textAlign: 'center',
   },
-
-  // ---- Modais Gerais ----
   modalBackground: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)', // Fundo escurecido suave
+    backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -931,8 +740,6 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     textAlign: 'center',
   },
-  
-  // ---- Modal de Salvar ----
   inputLabel: {
     fontSize: 14,
     color: '#7f8c8d',
@@ -975,7 +782,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   confirmButton: {
-    backgroundColor: '#3498db', // Azul primário
+    backgroundColor: '#3498db',
     marginLeft: 8,
   },
   cancelButtonText: {
@@ -988,14 +795,12 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 16,
   },
-
-  // ---- Modal de Histórico (Full Screen) ----
   fullScreenModalBg: {
-    justifyContent: 'flex-end', // Gruda embaixo ou ocupa tudo
+    justifyContent: 'flex-end',
   },
   fullScreenModalContainer: {
     width: '100%',
-    height: '90%', // Ocupa a maior parte da tela mas deixa o topo para fechar
+    height: '90%',
     backgroundColor: '#f8f9fa',
     borderTopLeftRadius: 30,
     borderTopRightRadius: 30,
@@ -1025,8 +830,6 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 40,
   },
-  
-  // ---- Componente: History Card ----
   historyCard: {
     backgroundColor: '#fff',
     borderRadius: 16,
@@ -1070,8 +873,6 @@ const styles = StyleSheet.create({
   deleteButtonIcon: {
     fontSize: 18,
   },
-
-  // ---- Empty State do Histórico ----
   emptyStateContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -1094,8 +895,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
   },
-
-  // ---- Modal de Configurações ----
   settingsHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
