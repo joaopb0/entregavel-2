@@ -98,7 +98,6 @@ export default function App() {
         history = JSON.parse(storedData);
       }
 
-      // Endereço padrão de São Leopoldo (sempre presente para facilitar testes)
       const defaultLocation = {
         id: 'default-sl-001',
         title: 'Teste - Centro, São Leopoldo',
@@ -110,7 +109,6 @@ export default function App() {
       const hasDefault = history.some((h) => h.id === defaultLocation.id);
       if (!hasDefault) {
         history = [defaultLocation, ...history];
-        // Atualiza o armazenamento com o default incluído
         await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(history));
       }
 
