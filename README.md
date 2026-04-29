@@ -1,4 +1,4 @@
-Aviso!!! Se não estiver funcionando, verificar se está na mesma rede, e se o firewall está desligado, caso contrario, o app pode não abrir no celular.
+Aviso!!! Se não estiver funcionando, verificar se está na mesma rede e se o firewall está desligado, caso contrario, o app pode não abrir no celular.
 
 # 🚙 Onde Parei?
 
