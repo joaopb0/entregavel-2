@@ -1,3 +1,5 @@
+Aviso!!! Se não estiver funcionando, verificar se está na mesma rede, e se o firewall está desligado, caso contrario, o app pode não abrir no celular.
+
 # 🚙 Onde Parei?
 
 Uma aplicação móvel desenvolvida em React Native com Expo, criada para ser o seu diário de bordo e estacionamento. O app ajuda a guardar a localização exata de onde você deixou o seu veículo e a traçar facilmente a rota de volta.

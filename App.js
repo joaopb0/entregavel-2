@@ -92,11 +92,29 @@ export default function App() {
   const loadHistoryFromStorage = async () => {
     try {
       const storedData = await AsyncStorage.getItem(STORAGE_KEY);
+      let history = [];
+
       if (storedData !== null) {
-        setSavedLocations(JSON.parse(storedData));
-      } else {
-        setSavedLocations([]);
+        history = JSON.parse(storedData);
       }
+
+      // Endereço padrão de São Leopoldo (sempre presente para facilitar testes)
+      const defaultLocation = {
+        id: 'default-sl-001',
+        title: 'Teste - Centro, São Leopoldo',
+        address: 'R. Independência, 100 - Centro, São Leopoldo - RS, 93010-000',
+        coordinate: { latitude: -29.7613, longitude: -51.1517 },
+        timestamp: new Date().toISOString(),
+      };
+
+      const hasDefault = history.some((h) => h.id === defaultLocation.id);
+      if (!hasDefault) {
+        history = [defaultLocation, ...history];
+        // Atualiza o armazenamento com o default incluído
+        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(history));
+      }
+
+      setSavedLocations(history);
     } catch (error) {
       console.error("Erro ao carregar histórico:", error);
       Alert.alert("Erro", "Falha ao ler os dados salvos no dispositivo.");
